@@ -1,6 +1,8 @@
 package rs.nikolaivanovic.imagetoasciiconverter.utils
 
 import android.graphics.Bitmap
+import androidx.core.graphics.scale
+import androidx.core.graphics.get
 
 class AsciiConverter {
 
@@ -15,13 +17,13 @@ class AsciiConverter {
         height: Int = 50
     ): String {
         // Resize bitmap for ASCII art
-        val resized = Bitmap.createScaledBitmap(bitmap, width, height, true)
+        val resized = bitmap.scale(width, height)
 
         val asciiArt = StringBuilder()
 
         for (y in 0 until resized.height) {
             for (x in 0 until resized.width) {
-                val pixel = resized.getPixel(x, y)
+                val pixel = resized[x, y]
 
                 // Extract RGB components
                 val red = (pixel shr 16) and 0xFF
