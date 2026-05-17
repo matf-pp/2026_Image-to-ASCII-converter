@@ -1,29 +1,41 @@
 package rs.nikolaivanovic.imagetoasciiconverter
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.ViewModelProvider
+import kotlinx.coroutines.launch
 import rs.nikolaivanovic.imagetoasciiconverter.ui.theme.ImageToAsciiConverterTheme
+import rs.nikolaivanovic.imagetoasciiconverter.viewmodels.CameraViewModel
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.P)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             ImageToAsciiConverterTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { paddingValues ->
-                    CameraScreen(
-                        onImageCaptured = { imagePath ->
-                            // TODO: Handle captured image for ASCII conversion
-                            println("Image captured at: $imagePath")
-                        },
+                    val viewModel = ViewModelProvider(this).get(CameraViewModel::class.java)
+                    AppNavigation(
+                        viewModel = viewModel,
                         modifier = Modifier.padding(paddingValues)
                     )
                 }
@@ -32,10 +44,62 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.P)
+@Composable
+fun AppNavigation(
+    viewModel: CameraViewModel,
+    modifier: Modifier = Modifier
+) {
+    val currentScreen = remember { mutableStateOf<AppScreen>(AppScreen.Camera) }
+    val asciiResult = remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+
+    when (currentScreen.value) {
+        is AppScreen.Camera -> {
+            CameraScreen(
+                onImageCaptured = { imagePath ->
+                    currentScreen.value = AppScreen.Loading
+                    scope.launch {
+                        val ascii = viewModel.convertImageToAscii(imagePath, width = 80, height = 40)
+                        asciiResult.value = ascii
+                        currentScreen.value = AppScreen.AsciiResult
+                    }
+                },
+                modifier = modifier
+            )
+        }
+        is AppScreen.AsciiResult -> {
+            AsciiResultScreen(
+                asciiArt = asciiResult.value,
+                onBackToCamera = {
+                    currentScreen.value = AppScreen.Camera
+                },
+                modifier = modifier
+            )
+        }
+        is AppScreen.Loading -> {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color.Green)
+            }
+        }
+    }
+}
+
+sealed class AppScreen {
+    object Camera : AppScreen()
+    object AsciiResult : AppScreen()
+    object Loading : AppScreen()
+}
+
 @Preview(showBackground = true)
 @Composable
 fun CameraScreenPreview() {
     ImageToAsciiConverterTheme {
-        // Preview placeholder since camera preview can't be shown in preview
+        // Preview placeholder
     }
 }
