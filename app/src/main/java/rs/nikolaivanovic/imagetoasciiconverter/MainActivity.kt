@@ -51,17 +51,24 @@ fun AppNavigation(
     modifier: Modifier = Modifier
 ) {
     val currentScreen = remember { mutableStateOf<AppScreen>(AppScreen.Camera) }
-    val asciiResult = remember { mutableStateOf("") }
+    val asciiResult = remember { mutableStateOf<CameraViewModel.ConversionResult?>(null) }
+    val isColorEnabled = remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     when (currentScreen.value) {
         is AppScreen.Camera -> {
             CameraScreen(
+                isColorEnabled = isColorEnabled.value,
+                onColorToggle = { isColorEnabled.value = it },
                 onImageCaptured = { imagePath ->
                     currentScreen.value = AppScreen.Loading
                     scope.launch {
-                        val ascii = viewModel.convertImageToAscii(imagePath, width = 80, height = 40)
-                        asciiResult.value = ascii
+                        val result = viewModel.convertImageToAscii(
+                            imagePath,
+                            width = 80,
+                            isColorEnabled = isColorEnabled.value
+                        )
+                        asciiResult.value = result
                         currentScreen.value = AppScreen.AsciiResult
                     }
                 },
@@ -69,13 +76,15 @@ fun AppNavigation(
             )
         }
         is AppScreen.AsciiResult -> {
-            AsciiResultScreen(
-                asciiArt = asciiResult.value,
-                onBackToCamera = {
-                    currentScreen.value = AppScreen.Camera
-                },
-                modifier = modifier
-            )
+            asciiResult.value?.let { result ->
+                AsciiResultScreen(
+                    result = result,
+                    onBackToCamera = {
+                        currentScreen.value = AppScreen.Camera
+                    },
+                    modifier = modifier
+                )
+            }
         }
         is AppScreen.Loading -> {
             Box(
