@@ -55,8 +55,18 @@ dependencies {
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
+
     // Accompanist Permissions for handling runtime permissions
     implementation(libs.androidx.accompanist.permissions)
+
+    implementation(libs.androidx.exifinterface)
+
+    // Exclude remote compose dependencies (not needed)
+    configurations.all {
+        exclude(group = "androidx.compose.remote", module = "remote-creation-android")
+        exclude(group = "androidx.compose.remote", module = "remote-player-core")
+        exclude(group = "androidx.compose.remote", module = "remote-creation-compose")
+    }
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

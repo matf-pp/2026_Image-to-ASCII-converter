@@ -8,7 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,45 +32,94 @@ fun AsciiResultScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(Color(0xFF0F0F0F))
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Title
-        Text(
-            text = "ASCII Art Result",
-            fontSize = 24.sp,
-            color = Color.Green,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        // Header with back button
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            IconButton(
+                onClick = onBackToCamera,
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back to Camera",
+                    tint = Color.White
+                )
+            }
 
-        // ASCII Art Display
+            Text(
+                text = "ASCII Art",
+                fontSize = 24.sp,
+                color = Color.White,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        // ASCII Art Display Box
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .background(Color.DarkGray)
-                .padding(12.dp)
+                .background(Color(0xFF1A1A1A), shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             contentAlignment = Alignment.TopStart
         ) {
             Text(
                 text = asciiArt,
-                fontSize = 6.sp,
+                fontSize = 5.5.sp,
                 fontFamily = FontFamily.Monospace,
-                color = Color.Green,
-                lineHeight = 8.sp
+                color = Color.White,
+                lineHeight = 6.5.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
             )
         }
 
-        // Back to Camera Button
-        Button(
-            onClick = onBackToCamera,
+        // Action Buttons
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 16.dp)
+                .padding(top = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = "Back to Camera", fontSize = 16.sp)
+            Button(
+                onClick = onBackToCamera,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF2196F3)
+                )
+            ) {
+                Text(
+                    text = "📷 Capture Another",
+                    fontSize = 16.sp,
+                    color = Color.White
+                )
+            }
+
+            Button(
+                onClick = onBackToCamera,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF424242)
+                )
+            ) {
+                Text(
+                    text = "← Back to Camera",
+                    fontSize = 14.sp,
+                    color = Color.White
+                )
+            }
         }
     }
 }

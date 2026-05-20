@@ -2,6 +2,7 @@ package rs.nikolaivanovic.imagetoasciiconverter.viewmodels
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.camera.core.ImageCapture
@@ -33,7 +34,10 @@ class CameraViewModel : ViewModel() {
                     super.onCaptureSuccess(image)
 
                     // Convert ImageProxy to Bitmap
-                    val bitmap = image.toBitmap()
+                    var bitmap = image.toBitmap()
+
+                    // Fix rotation based on image orientation
+                    bitmap = rotateBitmapIfNeeded(bitmap, image.imageInfo.rotationDegrees)
 
                     // Save to file
                     val file = saveBitmapToFile(context, bitmap)
@@ -56,10 +60,27 @@ class CameraViewModel : ViewModel() {
     ): String = withContext(Dispatchers.Default) {
         return@withContext try {
             val converter = AsciiConverter()
-            converter.convertToAsciiFromPath(imagePath, width, height)
+            converter.convertToAsciiFromPath(imagePath, width, height, AsciiConverter.Quality.ULTRA)
         } catch (e: Exception) {
             "Error converting image: ${e.message}"
         }
+    }
+
+    private fun rotateBitmapIfNeeded(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
+        if (rotationDegrees == 0) return bitmap
+
+        val matrix = Matrix()
+        matrix.postRotate(rotationDegrees.toFloat())
+
+        return Bitmap.createBitmap(
+            bitmap,
+            0,
+            0,
+            bitmap.width,
+            bitmap.height,
+            matrix,
+            true
+        )
     }
 
     private fun saveBitmapToFile(context: Context, bitmap: Bitmap): File {
