@@ -3,6 +3,12 @@ package rs.nikolaivanovic.imagetoasciiconverter
 import android.Manifest
 import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.compose.foundation.background
@@ -42,7 +48,7 @@ fun CameraScreen(
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     val context = LocalContext.current
 
-    // Request permission in a side-effect
+    // Request permission in a side effect
     LaunchedEffect(Unit) {
         if (!cameraPermissionState.status.isGranted) {
             cameraPermissionState.launchPermissionRequest()
@@ -77,6 +83,25 @@ fun CameraPreview(
         bindToLifecycle(lifecycleOwner)
     }
 
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let { selectedUri ->
+            try {
+                val inputStream = context.contentResolver.openInputStream(selectedUri)
+                val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+                bitmap?.let {
+                    // Note: You must remove 'private' from saveBitmapToFile in CameraViewModel
+                    val file = viewModel.saveBitmapToFile(context, it)
+                    onImageCaptured(file.absolutePath)
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Failed to load gallery image", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter
@@ -91,40 +116,66 @@ fun CameraPreview(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Capture Button - Simple Circle
-        Box(
+        // UI Buttons
+        Row(
             modifier = Modifier
-                .padding(bottom = 32.dp)
-                .size(64.dp)
-                .background(Color.White.copy(alpha = 0.8f), CircleShape)
-                .clickable {
-                    viewModel.captureImage(
-                        controller = cameraController,
-                        context = context,
-                        onImageCaptured = { file ->
-                            Toast.makeText(
-                                context,
-                                "Image saved: ${file.name}",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            onImageCaptured(file.absolutePath)
-                        },
-                        onError = { exception ->
-                            Toast.makeText(
-                                context,
-                                "Capture failed: ${exception.message}",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    )
-                },
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(bottom = 32.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "●",
-                fontSize = 32.sp,
-                color = Color.Black
-            )
+            // Gallery Button
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Color.White.copy(alpha = 0.6f), CircleShape)
+                    .clickable {
+                        galleryLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("🖼️", fontSize = 24.sp)
+            }
+
+            // Capture Button
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(Color.White.copy(alpha = 0.8f), CircleShape)
+                    .clickable {
+                        viewModel.captureImage(
+                            controller = cameraController,
+                            context = context,
+                            onImageCaptured = { file ->
+                                Toast.makeText(
+                                    context,
+                                    "Image saved: ${file.name}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                onImageCaptured(file.absolutePath)
+                            },
+                            onError = { exception ->
+                                Toast.makeText(
+                                    context,
+                                    "Capture failed: ${exception.message}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "●",
+                    fontSize = 32.sp,
+                    color = Color.Black
+                )
+            }
+
+            // Empty space to keep capture button centered
+            Box(modifier = Modifier.size(56.dp))
         }
     }
 }

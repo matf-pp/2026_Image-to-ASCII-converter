@@ -83,7 +83,7 @@ class CameraViewModel : ViewModel() {
         )
     }
 
-    private fun saveBitmapToFile(context: Context, bitmap: Bitmap): File {
+    public fun saveBitmapToFile(context: Context, bitmap: Bitmap): File {
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())
         val fileName = "IMG_$timeStamp.jpg"
 
