@@ -18,6 +18,11 @@ import java.util.Locale
 
 class CameraViewModel : ViewModel() {
 
+    sealed class ConversionResult {
+        data class PlainText(val text: String) : ConversionResult()
+        data class ColoredText(val coloredChars: List<AsciiConverter.ColoredChar>) : ConversionResult()
+    }
+
     @RequiresApi(Build.VERSION_CODES.P)
     fun captureImage(
         controller: LifecycleCameraController,
@@ -55,14 +60,18 @@ class CameraViewModel : ViewModel() {
 
     suspend fun convertImageToAscii(
         imagePath: String,
-        width: Int = 80,
-        height: Int = 40
-    ): String = withContext(Dispatchers.Default) {
-        return@withContext try {
-            val converter = AsciiConverter()
-            converter.convertToAsciiFromPath(imagePath, width, height, AsciiConverter.Quality.ULTRA)
-        } catch (e: Exception) {
-            "Error converting image: ${e.message}"
+        width: Int = 100,
+        isColorEnabled: Boolean = false
+    ): ConversionResult = withContext(Dispatchers.Default) {
+        val converter = AsciiConverter()
+        return@withContext if (isColorEnabled) {
+            ConversionResult.ColoredText(
+                converter.convertToColoredAsciiFromPath(imagePath, width, AsciiConverter.Quality.ULTRA)
+            )
+        } else {
+            ConversionResult.PlainText(
+                converter.convertToAsciiFromPath(imagePath, width, AsciiConverter.Quality.ULTRA)
+            )
         }
     }
 

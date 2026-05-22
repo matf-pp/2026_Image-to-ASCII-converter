@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,15 +21,40 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import rs.nikolaivanovic.imagetoasciiconverter.viewmodels.CameraViewModel
 
 @Composable
 fun AsciiResultScreen(
-    asciiArt: String,
+    result: CameraViewModel.ConversionResult,
     onBackToCamera: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val verticalScrollState = rememberScrollState()
+    val horizontalScrollState = rememberScrollState()
+
+    val displayContent = when (result) {
+        is CameraViewModel.ConversionResult.PlainText -> AnnotatedString(result.text)
+        is CameraViewModel.ConversionResult.ColoredText -> {
+            buildAnnotatedString {
+                result.coloredChars.forEach { coloredChar ->
+                    if (coloredChar.char == '\n') {
+                        append("\n")
+                    } else {
+                        withStyle(style = SpanStyle(color = Color(coloredChar.color))) {
+                            append(coloredChar.char.toString())
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -68,19 +94,23 @@ fun AsciiResultScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .background(Color(0xFF1A1A1A), shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                .background(
+                    Color(0xFF1A1A1A),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                )
                 .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(verticalScrollState)
+                .horizontalScroll(horizontalScrollState),
             contentAlignment = Alignment.TopStart
         ) {
             Text(
-                text = asciiArt,
-                fontSize = 5.5.sp,
+                text = displayContent,
+                fontSize = 4.sp,
                 fontFamily = FontFamily.Monospace,
                 color = Color.White,
-                lineHeight = 6.5.sp,
+                lineHeight = 5.sp,
+                softWrap = false,
                 modifier = Modifier
-                    .fillMaxWidth()
             )
         }
 

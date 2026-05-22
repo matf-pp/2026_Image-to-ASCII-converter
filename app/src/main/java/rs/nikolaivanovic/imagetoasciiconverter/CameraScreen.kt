@@ -5,8 +5,10 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.CameraController
@@ -38,10 +40,18 @@ import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresApi
 import rs.nikolaivanovic.imagetoasciiconverter.viewmodels.CameraViewModel
 
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+
 @RequiresApi(Build.VERSION_CODES.P)
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun CameraScreen(
+    isColorEnabled: Boolean,
+    onColorToggle: (Boolean) -> Unit,
     onImageCaptured: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -58,6 +68,8 @@ fun CameraScreen(
     if (cameraPermissionState.status.isGranted) {
         val viewModel = ViewModelProvider(context as ComponentActivity).get(CameraViewModel::class.java)
         CameraPreview(
+            isColorEnabled = isColorEnabled,
+            onColorToggle = onColorToggle,
             onImageCaptured = onImageCaptured,
             viewModel = viewModel,
             modifier = modifier
@@ -71,6 +83,8 @@ fun CameraScreen(
 @RequiresApi(Build.VERSION_CODES.P)
 @Composable
 fun CameraPreview(
+    isColorEnabled: Boolean,
+    onColorToggle: (Boolean) -> Unit,
     onImageCaptured: (String) -> Unit,
     viewModel: CameraViewModel,
     modifier: Modifier = Modifier
@@ -78,9 +92,10 @@ fun CameraPreview(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val cameraController = LifecycleCameraController(context).apply {
-        setEnabledUseCases(CameraController.IMAGE_CAPTURE)
-        bindToLifecycle(lifecycleOwner)
+    val cameraController = remember {
+        LifecycleCameraController(context).apply {
+            bindToLifecycle(lifecycleOwner)
+        }
     }
 
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -117,65 +132,90 @@ fun CameraPreview(
         )
 
         // UI Buttons
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 32.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Gallery Button
-            Box(
+            // Color Toggle Switch
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .size(56.dp)
-                    .background(Color.White.copy(alpha = 0.6f), CircleShape)
-                    .clickable {
-                        galleryLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    },
-                contentAlignment = Alignment.Center
+                    .padding(bottom = 16.dp)
+                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Text("🖼️", fontSize = 24.sp)
-            }
-
-            // Capture Button
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(Color.White.copy(alpha = 0.8f), CircleShape)
-                    .clickable {
-                        viewModel.captureImage(
-                            controller = cameraController,
-                            context = context,
-                            onImageCaptured = { file ->
-                                Toast.makeText(
-                                    context,
-                                    "Image saved: ${file.name}",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                onImageCaptured(file.absolutePath)
-                            },
-                            onError = { exception ->
-                                Toast.makeText(
-                                    context,
-                                    "Capture failed: ${exception.message}",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        )
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "●",
-                    fontSize = 32.sp,
-                    color = Color.Black
+                Text("Color", color = Color.White, fontSize = 14.sp)
+                Spacer(modifier = Modifier.size(8.dp))
+                Switch(
+                    checked = isColorEnabled,
+                    onCheckedChange = onColorToggle,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.Cyan,
+                        checkedTrackColor = Color.Cyan.copy(alpha = 0.5f)
+                    )
                 )
             }
 
-            // Empty space to keep capture button centered
-            Box(modifier = Modifier.size(56.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Gallery Button
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(Color.White.copy(alpha = 0.6f), CircleShape)
+                        .clickable {
+                            galleryLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("🖼️", fontSize = 24.sp)
+                }
+
+                // Capture Button
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .background(Color.White.copy(alpha = 0.8f), CircleShape)
+                        .clickable {
+                            viewModel.captureImage(
+                                controller = cameraController,
+                                context = context,
+                                onImageCaptured = { file ->
+                                    Toast.makeText(
+                                        context,
+                                        "Image saved: ${file.name}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    onImageCaptured(file.absolutePath)
+                                },
+                                onError = { exception ->
+                                    Toast.makeText(
+                                        context,
+                                        "Capture failed: ${exception.message}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "●",
+                        fontSize = 32.sp,
+                        color = Color.Black
+                    )
+                }
+
+                // Empty space to keep capture button centered
+                Box(modifier = Modifier.size(56.dp))
+            }
         }
     }
 }
