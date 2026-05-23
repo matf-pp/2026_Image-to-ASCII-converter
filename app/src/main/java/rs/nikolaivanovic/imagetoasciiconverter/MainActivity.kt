@@ -1,11 +1,9 @@
 package rs.nikolaivanovic.imagetoasciiconverter
 
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,8 +23,18 @@ import kotlinx.coroutines.launch
 import rs.nikolaivanovic.imagetoasciiconverter.ui.theme.ImageToAsciiConverterTheme
 import rs.nikolaivanovic.imagetoasciiconverter.viewmodels.CameraViewModel
 
+enum class AsciiMode(val label: String, val isColorEnabled: Boolean) {
+    Plain("Plain", false),
+    Colored("Colored", true)
+}
+
+enum class AsciiSizePreset(val label: String, val width: Int) {
+    Compact("Compact", 60),
+    Balanced("Balanced", 80),
+    Detailed("Detailed", 100)
+}
+
 class MainActivity : ComponentActivity() {
-    @RequiresApi(Build.VERSION_CODES.P)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -44,41 +52,95 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.P)
 @Composable
 fun AppNavigation(
     viewModel: CameraViewModel,
     modifier: Modifier = Modifier
 ) {
     val currentScreen = remember { mutableStateOf<AppScreen>(AppScreen.Camera) }
+    val currentImagePath = remember { mutableStateOf<String?>(null) }
     val asciiResult = remember { mutableStateOf<CameraViewModel.ConversionResult?>(null) }
-    val isColorEnabled = remember { mutableStateOf(false) }
+    val currentMode = remember { mutableStateOf(AsciiMode.Plain) }
+    val currentSizePreset = remember { mutableStateOf(AsciiSizePreset.Balanced) }
+    val isUpdatingResult = remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    fun renderAscii(
+        imagePath: String,
+        mode: AsciiMode,
+        sizePreset: AsciiSizePreset,
+        showLoadingScreen: Boolean
+    ) {
+        if (showLoadingScreen) {
+            currentScreen.value = AppScreen.Loading
+        } else {
+            isUpdatingResult.value = true
+        }
+
+        scope.launch {
+            try {
+                val result = viewModel.convertImageToAscii(
+                    imagePath = imagePath,
+                    width = sizePreset.width,
+                    isColorEnabled = mode.isColorEnabled
+                )
+                asciiResult.value = result
+                currentScreen.value = AppScreen.AsciiResult
+            } finally {
+                isUpdatingResult.value = false
+            }
+        }
+    }
 
     when (currentScreen.value) {
         is AppScreen.Camera -> {
             CameraScreen(
-                isColorEnabled = isColorEnabled.value,
-                onColorToggle = { isColorEnabled.value = it },
                 onImageCaptured = { imagePath ->
-                    currentScreen.value = AppScreen.Loading
-                    scope.launch {
-                        val result = viewModel.convertImageToAscii(
-                            imagePath,
-                            width = 80,
-                            isColorEnabled = isColorEnabled.value
-                        )
-                        asciiResult.value = result
-                        currentScreen.value = AppScreen.AsciiResult
-                    }
+                    currentImagePath.value = imagePath
+                    renderAscii(
+                        imagePath = imagePath,
+                        mode = currentMode.value,
+                        sizePreset = currentSizePreset.value,
+                        showLoadingScreen = true
+                    )
                 },
                 modifier = modifier
             )
         }
+
         is AppScreen.AsciiResult -> {
             asciiResult.value?.let { result ->
                 AsciiResultScreen(
                     result = result,
+                    currentMode = currentMode.value,
+                    currentSizePreset = currentSizePreset.value,
+                    isUpdating = isUpdatingResult.value,
+                    onModeSelected = { newMode ->
+                        if (newMode != currentMode.value) {
+                            currentMode.value = newMode
+                            currentImagePath.value?.let { imagePath ->
+                                renderAscii(
+                                    imagePath = imagePath,
+                                    mode = newMode,
+                                    sizePreset = currentSizePreset.value,
+                                    showLoadingScreen = false
+                                )
+                            }
+                        }
+                    },
+                    onSizePresetSelected = { newSizePreset ->
+                        if (newSizePreset != currentSizePreset.value) {
+                            currentSizePreset.value = newSizePreset
+                            currentImagePath.value?.let { imagePath ->
+                                renderAscii(
+                                    imagePath = imagePath,
+                                    mode = currentMode.value,
+                                    sizePreset = newSizePreset,
+                                    showLoadingScreen = false
+                                )
+                            }
+                        }
+                    },
                     onBackToCamera = {
                         currentScreen.value = AppScreen.Camera
                     },
@@ -86,6 +148,7 @@ fun AppNavigation(
                 )
             }
         }
+
         is AppScreen.Loading -> {
             Box(
                 modifier = modifier
