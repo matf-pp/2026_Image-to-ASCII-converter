@@ -5,31 +5,37 @@ import kotlin.math.pow
 import androidx.core.graphics.get
 import androidx.core.graphics.scale
 
+/*
+Utility class for converting Bitmaps into ASCII art representations
+*/
 class AsciiConverter {
 
+
+    // Holds a character and its corresponding color from the original image
     data class ColoredChar(val char: Char, val color: Int)
 
     companion object {
         // Standard ASCII characters from darkest to lightest
-        private const val ASCII_CHARS = "@%#*+=-:. "
+        private const val ASCII_CHARS = " .:-=+*#%@"
 
         // Extended ASCII with more granularity
-        private const val EXTENDED_ASCII_CHARS = "@@@%%###***+++===---:::...   "
+        private const val EXTENDED_ASCII_CHARS = "   ...:::---===+++***###%%@@@"
 
         // Ultra-extended with maximum detail - includes many shades
         private const val ULTRA_ASCII_CHARS = "  _.,-=+:;cba!?0123456789\$W#@"
     }
 
+    /*
+    Converts a bitmap into a string of ASCII characters based on pixel luminance.
+    */
     fun convertToAscii(
         bitmap: Bitmap,
         width: Int = 64,
         quality: Quality = Quality.ULTRA
     ): String {
-        // Calculate aspect ratio and compensate for tall ASCII characters (0.5 factor)
         val aspectRatio = bitmap.height.toDouble() / bitmap.width.toDouble()
         val height = (width * aspectRatio * 0.5).toInt().coerceAtLeast(1)
 
-        // Resize bitmap for ASCII art
         val resized = bitmap.scale(width, height)
 
         val chars = when (quality) {
@@ -40,7 +46,6 @@ class AsciiConverter {
 
         val asciiArt = StringBuilder()
 
-        // Calculate brightness range for better contrast
         val (minBrightness, maxBrightness) = calculateBrightnessRange(resized)
         val brightnessRange = maxBrightness - minBrightness
 
@@ -48,28 +53,21 @@ class AsciiConverter {
             for (x in 0 until resized.width) {
                 val pixel = resized[x, y]
 
-                // Extract RGB components
                 val red = (pixel shr 16) and 0xFF
                 val green = (pixel shr 8) and 0xFF
                 val blue = pixel and 0xFF
 
-                // Calculate brightness with enhanced luminance formula
                 val brightness = calculateEnhancedBrightness(red, green, blue)
 
-                // Normalize brightness to full range for better contrast
                 val normalizedBrightness = if (brightnessRange > 0.1) {
                     (brightness - minBrightness) / brightnessRange
                 } else {
                     brightness / 255.0
                 }
 
-                // Clamp to 0-1 range
                 val clampedBrightness = normalizedBrightness.coerceIn(0.0, 1.0)
-
-                // Apply gamma correction for better light sensitivity
                 val gammaCorrection = clampedBrightness.pow(0.9)
 
-                // Map brightness to ASCII character
                 val charIndex = (gammaCorrection * (chars.length - 1)).toInt()
                 asciiArt.append(chars[charIndex])
             }
@@ -78,7 +76,8 @@ class AsciiConverter {
 
         return asciiArt.toString()
     }
-
+    
+    //Helper to load an image from a file path and convert it to ASCII
     fun convertToAsciiFromPath(
         imagePath: String,
         width: Int = 64,
@@ -90,6 +89,10 @@ class AsciiConverter {
         return convertToAscii(bitmap, width, quality)
     }
 
+    /*
+    Algorithm to convert a Bitmap to a list of ColoredChar's
+    Preserves original pixel colors for each ASCII character
+    */
     fun convertToColoredAscii(
         bitmap: Bitmap,
         width: Int = 64,
@@ -133,6 +136,9 @@ class AsciiConverter {
         return result
     }
 
+    /*
+    Loads an image from path and converts it to colored ASCII data
+    */
     fun convertToColoredAsciiFromPath(
         imagePath: String,
         width: Int = 64,
@@ -145,11 +151,12 @@ class AsciiConverter {
     }
 
     private fun calculateEnhancedBrightness(red: Int, green: Int, blue: Int): Double {
-        // Enhanced luminance calculation with better sensitivity
         // Weights adjusted for better perceptual brightness
         return (0.2126 * red + 0.7152 * green + 0.0722 * blue)
     }
 
+
+    //Analyzes the image to find the darkest and brightest pixels for contrast normalization
     private fun calculateBrightnessRange(bitmap: Bitmap): Pair<Double, Double> {
         var minBrightness = Double.MAX_VALUE
         var maxBrightness = 0.0
@@ -181,8 +188,8 @@ class AsciiConverter {
     }
 
     enum class Quality {
-        LOW,      // 10 characters - basic
-        MEDIUM,   // 30 characters - good
-        ULTRA     // 47 characters - maximum detail
+        LOW,
+        MEDIUM,
+        ULTRA
     }
 }

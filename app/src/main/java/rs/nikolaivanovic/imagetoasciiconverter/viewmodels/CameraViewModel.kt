@@ -3,11 +3,10 @@ package rs.nikolaivanovic.imagetoasciiconverter.viewmodels
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.view.LifecycleCameraController
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -16,21 +15,41 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+/**
+ * Manages camera operations and handles the coordination of image-to-ASCII conversion processes.
+ */
 class CameraViewModel : ViewModel() {
+    
+    /**
+     * Represents the outcome of an ASCII conversion, supporting both plain text and colored variations.
+     */
+    sealed class ConversionResult(
+        open val width: Int,
+        open val plainText: String
+    ) {
+        data class PlainText(
+            val text: String,
+            override val width: Int
+        ) : ConversionResult(width = width, plainText = text)
 
-    sealed class ConversionResult {
-        data class PlainText(val text: String) : ConversionResult()
-        data class ColoredText(val coloredChars: List<AsciiConverter.ColoredChar>) : ConversionResult()
+        data class ColoredText(
+            val coloredChars: List<AsciiConverter.ColoredChar>,
+            override val width: Int,
+            override val plainText: String
+        ) : ConversionResult(width = width, plainText = plainText)
     }
-
-    @RequiresApi(Build.VERSION_CODES.P)
+    
+    /**
+     * Captures a photo using the camera controller and saves it as a temporary file in the cache.
+     */
     fun captureImage(
         controller: LifecycleCameraController,
         context: Context,
+        mirrorHorizontally: Boolean = false,
         onImageCaptured: (File) -> Unit,
         onError: (Exception) -> Unit
     ) {
-        val mainExecutor = context.mainExecutor
+        val mainExecutor = ContextCompat.getMainExecutor(context)
 
         controller.takePicture(
             mainExecutor,
@@ -38,13 +57,13 @@ class CameraViewModel : ViewModel() {
                 override fun onCaptureSuccess(image: androidx.camera.core.ImageProxy) {
                     super.onCaptureSuccess(image)
 
-                    // Convert ImageProxy to Bitmap
                     var bitmap = image.toBitmap()
-
-                    // Fix rotation based on image orientation
                     bitmap = rotateBitmapIfNeeded(bitmap, image.imageInfo.rotationDegrees)
 
-                    // Save to file
+                    if (mirrorHorizontally) {
+                        bitmap = mirrorBitmapHorizontally(bitmap)
+                    }
+
                     val file = saveBitmapToFile(context, bitmap)
                     onImageCaptured(file)
                     image.close()
@@ -58,23 +77,50 @@ class CameraViewModel : ViewModel() {
         )
     }
 
+    /**
+     * Background task that converts an image file into ASCII art, choosing between plain or colored modes.
+     */
     suspend fun convertImageToAscii(
         imagePath: String,
         width: Int = 100,
-        isColorEnabled: Boolean = false
+        isColorEnabled: Boolean = false,
+        quality: AsciiConverter.Quality = AsciiConverter.Quality.ULTRA
     ): ConversionResult = withContext(Dispatchers.Default) {
         val converter = AsciiConverter()
+
         return@withContext if (isColorEnabled) {
+            val coloredChars = converter.convertToColoredAsciiFromPath(
+                imagePath,
+                width,
+                quality
+            )
+
+            val plainText = buildString {
+                coloredChars.forEach { append(it.char) }
+            }
+
             ConversionResult.ColoredText(
-                converter.convertToColoredAsciiFromPath(imagePath, width, AsciiConverter.Quality.ULTRA)
+                coloredChars = coloredChars,
+                width = width,
+                plainText = plainText
             )
         } else {
+            val plainText = converter.convertToAsciiFromPath(
+                imagePath,
+                width,
+                quality
+            )
+
             ConversionResult.PlainText(
-                converter.convertToAsciiFromPath(imagePath, width, AsciiConverter.Quality.ULTRA)
+                text = plainText,
+                width = width
             )
         }
     }
 
+    /**
+     * Corrects image orientation by rotating the bitmap based on camera metadata degrees.
+     */
     private fun rotateBitmapIfNeeded(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
         if (rotationDegrees == 0) return bitmap
 
@@ -92,7 +138,29 @@ class CameraViewModel : ViewModel() {
         )
     }
 
-    public fun saveBitmapToFile(context: Context, bitmap: Bitmap): File {
+    /**
+     * Horizontally flips a bitmap, primarily used to correct the "mirror" effect of front-facing cameras.
+     */
+    private fun mirrorBitmapHorizontally(bitmap: Bitmap): Bitmap {
+        val matrix = Matrix().apply {
+            preScale(-1f, 1f)
+        }
+
+        return Bitmap.createBitmap(
+            bitmap,
+            0,
+            0,
+            bitmap.width,
+            bitmap.height,
+            matrix,
+            true
+        )
+    }
+
+    /**
+     * Converts a bitmap into a JPEG file and stores it within the application's internal cache folder.
+     */
+    fun saveBitmapToFile(context: Context, bitmap: Bitmap): File {
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())
         val fileName = "IMG_$timeStamp.jpg"
 

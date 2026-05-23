@@ -1,11 +1,9 @@
 package rs.nikolaivanovic.imagetoasciiconverter
 
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,10 +21,23 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.launch
 import rs.nikolaivanovic.imagetoasciiconverter.ui.theme.ImageToAsciiConverterTheme
+import rs.nikolaivanovic.imagetoasciiconverter.utils.AsciiConverter
 import rs.nikolaivanovic.imagetoasciiconverter.viewmodels.CameraViewModel
 
+// Configuration for ASCII rendering styles
+enum class AsciiMode(val label: String, val isColorEnabled: Boolean) {
+    Plain("Plain", false),
+    Colored("Colored", true)
+}
+
+// Maps UI selection labels to technical resolution (width) and character-set quality
+enum class AsciiSizePreset(val label: String, val width: Int, val quality: AsciiConverter.Quality) {
+    Compact("Compact", 60, AsciiConverter.Quality.LOW),
+    Balanced("Balanced", 80,  AsciiConverter.Quality.MEDIUM),
+    Detailed("Detailed", 100,  AsciiConverter.Quality.ULTRA)
+}
+
 class MainActivity : ComponentActivity() {
-    @RequiresApi(Build.VERSION_CODES.P)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -44,48 +55,121 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.P)
+/*
+ This composable acts as the "Single Source of Truth" and Router for the application
+ It tracks the navigation state, currently selected image, and conversion results
+ */
 @Composable
 fun AppNavigation(
     viewModel: CameraViewModel,
     modifier: Modifier = Modifier
 ) {
+    // UI state variables
     val currentScreen = remember { mutableStateOf<AppScreen>(AppScreen.Camera) }
+    val currentImagePath = remember { mutableStateOf<String?>(null) }
     val asciiResult = remember { mutableStateOf<CameraViewModel.ConversionResult?>(null) }
-    val isColorEnabled = remember { mutableStateOf(false) }
+    
+    // Configuration states
+    val currentMode = remember { mutableStateOf(AsciiMode.Plain) }
+    val currentSizePreset = remember { mutableStateOf(AsciiSizePreset.Balanced) }
+    
+    // Tracking if an asynchronous update is happening to show progress indicators
+    val isUpdatingResult = remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
+    /*
+     This function manages the workflow of converting an image file into an ASCII result.
+     It handles two types of loading:
+     1. A full-screen loader (when first entering the result screen).
+     2. A transparent overlay (when the user toggles settings while viewing the art).
+     */
+    fun renderAscii(
+        imagePath: String,
+        mode: AsciiMode,
+        sizePreset: AsciiSizePreset,
+        showLoadingScreen: Boolean
+    ) {
+        if (showLoadingScreen) {
+            currentScreen.value = AppScreen.Loading
+        } else {
+            isUpdatingResult.value = true
+        }
+
+        scope.launch {
+            try {
+                val result = viewModel.convertImageToAscii(
+                    imagePath = imagePath,
+                    width = sizePreset.width,
+                    isColorEnabled = mode.isColorEnabled,
+                    quality = sizePreset.quality
+                )
+                asciiResult.value = result
+                currentScreen.value = AppScreen.AsciiResult
+            } finally {
+                isUpdatingResult.value = false
+            }
+        }
+    }
+
+    // Navigation logic
     when (currentScreen.value) {
         is AppScreen.Camera -> {
             CameraScreen(
-                isColorEnabled = isColorEnabled.value,
-                onColorToggle = { isColorEnabled.value = it },
                 onImageCaptured = { imagePath ->
-                    currentScreen.value = AppScreen.Loading
-                    scope.launch {
-                        val result = viewModel.convertImageToAscii(
-                            imagePath,
-                            width = 80,
-                            isColorEnabled = isColorEnabled.value
-                        )
-                        asciiResult.value = result
-                        currentScreen.value = AppScreen.AsciiResult
-                    }
+                    currentImagePath.value = imagePath
+                    renderAscii(
+                        imagePath = imagePath,
+                        mode = currentMode.value,
+                        sizePreset = currentSizePreset.value,
+                        showLoadingScreen = true
+                    )
                 },
                 modifier = modifier
             )
         }
+
         is AppScreen.AsciiResult -> {
             asciiResult.value?.let { result ->
                 AsciiResultScreen(
                     result = result,
+                    currentMode = currentMode.value,
+                    currentSizePreset = currentSizePreset.value,
+                    isUpdating = isUpdatingResult.value,
+                    onModeSelected = { newMode ->
+                        if (newMode != currentMode.value) {
+                            currentMode.value = newMode
+                            currentImagePath.value?.let { imagePath ->
+                                renderAscii(
+                                    imagePath = imagePath,
+                                    mode = newMode,
+                                    sizePreset = currentSizePreset.value,
+                                    showLoadingScreen = false
+                                )
+                            }
+                        }
+                    },
+                    onSizePresetSelected = { newSizePreset ->
+                        if (newSizePreset != currentSizePreset.value) {
+                            currentSizePreset.value = newSizePreset
+                            currentImagePath.value?.let { imagePath ->
+                                renderAscii(
+                                    imagePath = imagePath,
+                                    mode = currentMode.value,
+                                    sizePreset = newSizePreset,
+                                    showLoadingScreen = false
+                                )
+                            }
+                        }
+                    },
                     onBackToCamera = {
+                        // Resetting state for a fresh capture.
                         currentScreen.value = AppScreen.Camera
                     },
                     modifier = modifier
                 )
             }
         }
+
         is AppScreen.Loading -> {
             Box(
                 modifier = modifier
@@ -99,6 +183,7 @@ fun AppNavigation(
     }
 }
 
+// Simple state definitions for navigation.
 sealed class AppScreen {
     object Camera : AppScreen()
     object AsciiResult : AppScreen()
