@@ -81,6 +81,7 @@ fun AsciiResultScreen(
 
     val plainAsciiText = result.plainText.trimEnd('\n')
 
+    // uses the Storage Access Framework for safely writing files
     val saveAsciiLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/plain")
     ) { uri ->
@@ -88,6 +89,7 @@ fun AsciiResultScreen(
 
         scope.launch {
             try {
+                // openOutputStream is the standard way to write data to a URI provided by SAF
                 context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                     outputStream.writer().use { writer ->
                         writer.write(plainAsciiText)
@@ -100,6 +102,10 @@ fun AsciiResultScreen(
         }
     }
 
+    /*
+    buildAnnotatedString is crucial for colored ASCII because it allows us to
+    attach different SpanStyles (colors) to individual characters in a single string
+    */
     val displayContent = when (result) {
         is CameraViewModel.ConversionResult.PlainText -> AnnotatedString(result.text)
         is CameraViewModel.ConversionResult.ColoredText -> {
@@ -120,7 +126,10 @@ fun AsciiResultScreen(
     val lines = result.plainText.trimEnd('\n').lines().ifEmpty { listOf("") }
     val rowCount = max(lines.size, 1)
     val columnCount = max(lines.maxOfOrNull { it.length } ?: 1, 1)
-
+    /*
+    We track the container size to dynamically calculate the font size so
+    the ASCII art fits perfectly within the viewer
+    */
     var viewerSize by remember { mutableStateOf(Size(0, 0)) }
 
     val fontSize = remember(viewerSize, rowCount, columnCount, density) {
@@ -175,7 +184,7 @@ fun AsciiResultScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "${columnCount} x $rowCount",
+                    text = "$columnCount x $rowCount",
                     color = Color.White,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -352,6 +361,7 @@ private fun calculateAsciiFontSize(
 ): TextUnit {
     if (widthPx <= 0 || heightPx <= 0) return 4.sp
 
+    // Using a 94% safety margin to prevent edge clipping
     val safeWidthPx = widthPx * 0.94f
     val safeHeightPx = heightPx * 0.94f
 
@@ -360,11 +370,15 @@ private fun calculateAsciiFontSize(
         (cellWidthPx / 0.68f).toSp()
     }
 
+    // 1.08f is a constant that accounts for standard monospace line height
     val heightBasedSp = with(density) {
         val cellHeightPx = safeHeightPx / rowCount
         (cellHeightPx / 1.08f).toSp()
     }
-
+    /*
+    We take the smaller of the two sizes to ensure it fits in both dimensions.
+    coerceIn prevents the font from becoming microscopic or too large.
+    */
     return min(widthBasedSp.value, heightBasedSp.value).coerceIn(2.5f, 18f).sp
 }
 

@@ -21,17 +21,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.launch
 import rs.nikolaivanovic.imagetoasciiconverter.ui.theme.ImageToAsciiConverterTheme
+import rs.nikolaivanovic.imagetoasciiconverter.utils.AsciiConverter
 import rs.nikolaivanovic.imagetoasciiconverter.viewmodels.CameraViewModel
 
+// Configuration for ASCII rendering styles
 enum class AsciiMode(val label: String, val isColorEnabled: Boolean) {
     Plain("Plain", false),
     Colored("Colored", true)
 }
 
-enum class AsciiSizePreset(val label: String, val width: Int) {
-    Compact("Compact", 60),
-    Balanced("Balanced", 80),
-    Detailed("Detailed", 100)
+// Maps UI selection labels to technical resolution (width) and character-set quality
+enum class AsciiSizePreset(val label: String, val width: Int, val quality: AsciiConverter.Quality) {
+    Compact("Compact", 60, AsciiConverter.Quality.LOW),
+    Balanced("Balanced", 80,  AsciiConverter.Quality.MEDIUM),
+    Detailed("Detailed", 100,  AsciiConverter.Quality.ULTRA)
 }
 
 class MainActivity : ComponentActivity() {
@@ -52,19 +55,34 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/*
+ This composable acts as the "Single Source of Truth" and Router for the application
+ It tracks the navigation state, currently selected image, and conversion results
+ */
 @Composable
 fun AppNavigation(
     viewModel: CameraViewModel,
     modifier: Modifier = Modifier
 ) {
+    // UI state variables
     val currentScreen = remember { mutableStateOf<AppScreen>(AppScreen.Camera) }
     val currentImagePath = remember { mutableStateOf<String?>(null) }
     val asciiResult = remember { mutableStateOf<CameraViewModel.ConversionResult?>(null) }
+    
+    // Configuration states
     val currentMode = remember { mutableStateOf(AsciiMode.Plain) }
     val currentSizePreset = remember { mutableStateOf(AsciiSizePreset.Balanced) }
+    
+    // Tracking if an asynchronous update is happening to show progress indicators
     val isUpdatingResult = remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
+    /*
+     This function manages the workflow of converting an image file into an ASCII result.
+     It handles two types of loading:
+     1. A full-screen loader (when first entering the result screen).
+     2. A transparent overlay (when the user toggles settings while viewing the art).
+     */
     fun renderAscii(
         imagePath: String,
         mode: AsciiMode,
@@ -82,7 +100,8 @@ fun AppNavigation(
                 val result = viewModel.convertImageToAscii(
                     imagePath = imagePath,
                     width = sizePreset.width,
-                    isColorEnabled = mode.isColorEnabled
+                    isColorEnabled = mode.isColorEnabled,
+                    quality = sizePreset.quality
                 )
                 asciiResult.value = result
                 currentScreen.value = AppScreen.AsciiResult
@@ -92,6 +111,7 @@ fun AppNavigation(
         }
     }
 
+    // Navigation logic
     when (currentScreen.value) {
         is AppScreen.Camera -> {
             CameraScreen(
@@ -142,6 +162,7 @@ fun AppNavigation(
                         }
                     },
                     onBackToCamera = {
+                        // Resetting state for a fresh capture.
                         currentScreen.value = AppScreen.Camera
                     },
                     modifier = modifier
@@ -162,6 +183,7 @@ fun AppNavigation(
     }
 }
 
+// Simple state definitions for navigation.
 sealed class AppScreen {
     object Camera : AppScreen()
     object AsciiResult : AppScreen()

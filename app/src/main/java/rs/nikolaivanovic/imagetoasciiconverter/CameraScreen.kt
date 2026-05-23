@@ -65,23 +65,29 @@ fun CameraScreen(
     onImageCaptured: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Accompanist Permissions provides a state-based approach to trigger the native permission dialog
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     val permissionStatus = cameraPermissionState.status
     val context = LocalContext.current
     val viewModel = ViewModelProvider(context as ComponentActivity).get(CameraViewModel::class.java)
     val scope = rememberCoroutineScope()
-
+    /*
+    Determine if we should show a "Settings" button instead of a request button.
+    This happens when the user has permanently denied the permission.
+    */
     val shouldShowSettingsButton = when (permissionStatus) {
         PermissionStatus.Granted -> false
         is PermissionStatus.Denied -> !permissionStatus.shouldShowRationale
     }
 
+    // Launcher for selecting an existing photo from the gallery
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let { selectedUri ->
             scope.launch {
                 try {
+                    // Image decoding and file saving is performed on IO thread to prevent UI freezing
                     val file = withContext(Dispatchers.IO) {
                         val bitmap = context.contentResolver.openInputStream(selectedUri)?.use { inputStream ->
                             BitmapFactory.decodeStream(inputStream)
@@ -98,6 +104,7 @@ fun CameraScreen(
         }
     }
 
+    // Automatically request permission when the screen starts if it's not granted
     LaunchedEffect(permissionStatus.isGranted) {
         if (!permissionStatus.isGranted) {
             cameraPermissionState.launchPermissionRequest()
@@ -127,6 +134,7 @@ fun CameraScreen(
                 )
             },
             onOpenSettings = {
+                // Navigates the user directly to the app's settings page in Android
                 val intent = Intent(
                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                     Uri.fromParts("package", context.packageName, null)
@@ -150,6 +158,7 @@ fun CameraPreview(
 
     var useFrontCamera by remember { mutableStateOf(false) }
 
+    // LifecycleCameraController handles the boilerplate of connecting to the camera hardware
     val cameraController = remember(context) {
         LifecycleCameraController(context).apply {
             setEnabledUseCases(CameraController.IMAGE_CAPTURE)
@@ -157,14 +166,17 @@ fun CameraPreview(
         }
     }
 
+    // We bind the controller to the lifecycle so it starts/stops automatically with the screen
     DisposableEffect(cameraController, lifecycleOwner) {
         cameraController.bindToLifecycle(lifecycleOwner)
 
         onDispose {
+            // Unbinding ensures camera resources are released correctly
             cameraController.unbind()
         }
     }
 
+    // Reactive update to switch between front and back camera lenses
     LaunchedEffect(useFrontCamera) {
         cameraController.cameraSelector = if (useFrontCamera) {
             CameraSelector.DEFAULT_FRONT_CAMERA
@@ -177,6 +189,7 @@ fun CameraPreview(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter
     ) {
+        // AndroidView is used to host the non-Compose PreviewView required by CameraX
         AndroidView(
             factory = { ctx ->
                 PreviewView(ctx).apply {
@@ -212,9 +225,11 @@ fun CameraPreview(
 
                 ShutterButton(
                     onClick = {
+                        // We pass the current camera controller to the ViewModel to execute the capture
                         viewModel.captureImage(
                             controller = cameraController,
                             context = context,
+                            // Mirroring is applied to selfies so the text doesn't appear backwards
                             mirrorHorizontally = useFrontCamera,
                             onImageCaptured = { file ->
                                 onImageCaptured(file.absolutePath)

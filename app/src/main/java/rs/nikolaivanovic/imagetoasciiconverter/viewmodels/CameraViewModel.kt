@@ -15,8 +15,14 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+/**
+ * Manages camera operations and handles the coordination of image-to-ASCII conversion processes.
+ */
 class CameraViewModel : ViewModel() {
-
+    
+    /**
+     * Represents the outcome of an ASCII conversion, supporting both plain text and colored variations.
+     */
     sealed class ConversionResult(
         open val width: Int,
         open val plainText: String
@@ -32,7 +38,10 @@ class CameraViewModel : ViewModel() {
             override val plainText: String
         ) : ConversionResult(width = width, plainText = plainText)
     }
-
+    
+    /**
+     * Captures a photo using the camera controller and saves it as a temporary file in the cache.
+     */
     fun captureImage(
         controller: LifecycleCameraController,
         context: Context,
@@ -68,10 +77,14 @@ class CameraViewModel : ViewModel() {
         )
     }
 
+    /**
+     * Background task that converts an image file into ASCII art, choosing between plain or colored modes.
+     */
     suspend fun convertImageToAscii(
         imagePath: String,
         width: Int = 100,
-        isColorEnabled: Boolean = false
+        isColorEnabled: Boolean = false,
+        quality: AsciiConverter.Quality = AsciiConverter.Quality.ULTRA
     ): ConversionResult = withContext(Dispatchers.Default) {
         val converter = AsciiConverter()
 
@@ -79,7 +92,7 @@ class CameraViewModel : ViewModel() {
             val coloredChars = converter.convertToColoredAsciiFromPath(
                 imagePath,
                 width,
-                AsciiConverter.Quality.ULTRA
+                quality
             )
 
             val plainText = buildString {
@@ -95,7 +108,7 @@ class CameraViewModel : ViewModel() {
             val plainText = converter.convertToAsciiFromPath(
                 imagePath,
                 width,
-                AsciiConverter.Quality.ULTRA
+                quality
             )
 
             ConversionResult.PlainText(
@@ -105,6 +118,9 @@ class CameraViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Corrects image orientation by rotating the bitmap based on camera metadata degrees.
+     */
     private fun rotateBitmapIfNeeded(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
         if (rotationDegrees == 0) return bitmap
 
@@ -122,6 +138,9 @@ class CameraViewModel : ViewModel() {
         )
     }
 
+    /**
+     * Horizontally flips a bitmap, primarily used to correct the "mirror" effect of front-facing cameras.
+     */
     private fun mirrorBitmapHorizontally(bitmap: Bitmap): Bitmap {
         val matrix = Matrix().apply {
             preScale(-1f, 1f)
@@ -138,6 +157,9 @@ class CameraViewModel : ViewModel() {
         )
     }
 
+    /**
+     * Converts a bitmap into a JPEG file and stores it within the application's internal cache folder.
+     */
     fun saveBitmapToFile(context: Context, bitmap: Bitmap): File {
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())
         val fileName = "IMG_$timeStamp.jpg"
