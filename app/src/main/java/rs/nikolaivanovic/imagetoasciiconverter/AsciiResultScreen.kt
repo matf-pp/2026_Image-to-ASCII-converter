@@ -58,6 +58,9 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 import rs.nikolaivanovic.imagetoasciiconverter.viewmodels.CameraViewModel
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 fun AsciiResultScreen(
@@ -280,9 +283,17 @@ fun AsciiResultScreen(
             ) {
                 Text(
                     text = displayContent,
-                    fontSize = fontSize,
-                    lineHeight = fontSize * 1.02f,
-                    fontFamily = FontFamily.Monospace,
+                    style = TextStyle(
+                        fontSize = fontSize,
+                        lineHeight = fontSize,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Normal,
+                        letterSpacing = 0.sp,
+                        textAlign = TextAlign.Left,
+                        platformStyle = PlatformTextStyle(
+                            includeFontPadding = false
+                        )
+                    ),
                     color = Color.White,
                     softWrap = false
                 )
@@ -367,7 +378,7 @@ private fun calculateAsciiFontSize(
 
     val widthBasedSp = with(density) {
         val cellWidthPx = safeWidthPx / columnCount
-        (cellWidthPx / 0.68f).toSp()
+        (cellWidthPx / 0.6f).toSp()
     }
 
     // 1.08f is a constant that accounts for standard monospace line height
