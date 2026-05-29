@@ -6,7 +6,6 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,7 +47,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionStatus
@@ -62,14 +60,13 @@ import rs.nikolaivanovic.imagetoasciiconverter.viewmodels.CameraViewModel
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun CameraScreen(
+    viewModel: CameraViewModel,
     onImageCaptured: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Accompanist Permissions provides a state-based approach to trigger the native permission dialog
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     val permissionStatus = cameraPermissionState.status
     val context = LocalContext.current
-    val viewModel = ViewModelProvider(context as ComponentActivity).get(CameraViewModel::class.java)
     val scope = rememberCoroutineScope()
     /*
     Determine if we should show a "Settings" button instead of a request button.
