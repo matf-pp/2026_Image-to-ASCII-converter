@@ -115,6 +115,7 @@ fun AppNavigation(
     when (currentScreen.value) {
         is AppScreen.Camera -> {
             CameraScreen(
+                viewModel = viewModel,
                 onImageCaptured = { imagePath ->
                     currentImagePath.value = imagePath
                     renderAscii(

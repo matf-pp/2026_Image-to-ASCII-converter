@@ -58,6 +58,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 import rs.nikolaivanovic.imagetoasciiconverter.viewmodels.CameraViewModel
+import java.util.Locale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -101,6 +102,29 @@ fun AsciiResultScreen(
                 Toast.makeText(context, "ASCII saved as .txt", Toast.LENGTH_SHORT).show()
             } catch (_: Exception) {
                 Toast.makeText(context, "Failed to save .txt file", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val saveHtmlLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/html")
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+
+        scope.launch {
+            try {
+                val coloredText = result as? CameraViewModel.ConversionResult.ColoredText
+                if (coloredText != null) {
+                    val htmlContent = generateHtmlFromColoredText(coloredText)
+                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        outputStream.writer().use { writer ->
+                            writer.write(htmlContent)
+                        }
+                    }
+                    Toast.makeText(context, "ASCII saved as .html", Toast.LENGTH_SHORT).show()
+                }
+            } catch (_: Exception) {
+                Toast.makeText(context, "Failed to save .html file", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -285,7 +309,7 @@ fun AsciiResultScreen(
                     text = displayContent,
                     style = TextStyle(
                         fontSize = fontSize,
-                        lineHeight = fontSize,
+                        lineHeight = fontSize * 1.05f,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Normal,
                         letterSpacing = 0.sp,
@@ -325,23 +349,41 @@ fun AsciiResultScreen(
                 .padding(top = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Button(
-                onClick = {
-                    val fileName = "ascii_art_${currentMode.label.lowercase()}_${currentSizePreset.label.lowercase()}.txt"
-                    saveAsciiLauncher.launch(fileName)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF1E88E5),
-                    contentColor = Color.White
-                )
-            ) {
-                Text(
-                    text = "Save as TXT",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+            val isColored = result is CameraViewModel.ConversionResult.ColoredText
+            val baseName = "ascii_art_${currentMode.label.lowercase()}_${currentSizePreset.label.lowercase()}"
+
+            if (isColored) {
+                Button(
+                    onClick = { saveHtmlLauncher.launch("$baseName.html") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF1E88E5),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(
+                        text = "Save as HTML",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            } else {
+                Button(
+                    onClick = { saveAsciiLauncher.launch("$baseName.txt") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF1E88E5),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(
+                        text = "Save as TXT",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             OutlinedButton(
@@ -378,7 +420,9 @@ private fun calculateAsciiFontSize(
 
     val widthBasedSp = with(density) {
         val cellWidthPx = safeWidthPx / columnCount
-        (cellWidthPx / 0.6f).toSp()
+        // Using 0.58f (standard standard terminal ratio) to force characters 
+        // into a tighter grid to prevent jagged edges on high-density screens.
+        (cellWidthPx / 0.58f).toSp()
     }
 
     // 1.08f is a constant that accounts for standard monospace line height
@@ -391,6 +435,35 @@ private fun calculateAsciiFontSize(
     coerceIn prevents the font from becoming microscopic or too large.
     */
     return min(widthBasedSp.value, heightBasedSp.value).coerceIn(2.5f, 18f).sp
+}
+
+private fun generateHtmlFromColoredText(result: CameraViewModel.ConversionResult.ColoredText): String {
+    val sb = StringBuilder()
+    sb.append("<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n<style>\n")
+    sb.append("body { background-color: #000; color: #fff; font-family: monospace; white-space: pre; line-height: 1.05; letter-spacing: 0; margin: 20px; }\n")
+    sb.append("</style>\n</head>\n<body>")
+
+    result.coloredChars.forEach { coloredChar ->
+        val char = coloredChar.char
+        if (char == '\n') {
+            sb.append("\n")
+        } else {
+            val escaped = when (char) {
+                '<' -> "&lt;"
+                '>' -> "&gt;"
+                '&' -> "&amp;"
+                '"' -> "&quot;"
+                '\'' -> "&#39;"
+                else -> char.toString()
+            }
+            // Format color as #RRGGBB
+            val hexColor = String.format(Locale.US, "#%06X", (0xFFFFFF and coloredChar.color))
+            sb.append("<span style=\"color:$hexColor\">$escaped</span>")
+        }
+    }
+
+    sb.append("</body>\n</html>")
+    return sb.toString()
 }
 
 @Composable

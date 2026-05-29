@@ -15,14 +15,9 @@ class AsciiConverter {
     data class ColoredChar(val char: Char, val color: Int)
 
     companion object {
-        // Standard ASCII characters from darkest to lightest
-        private const val ASCII_CHARS = " .:-=+*#%@"
-
-        // Extended ASCII with more granularity
-        private const val EXTENDED_ASCII_CHARS = "   ...:::---===+++***###%%@@@"
-
-        // Ultra-extended with maximum detail - includes many shades
-        private const val ULTRA_ASCII_CHARS = "  _.,-=+:;cba!?0123456789\$W#@"
+        private const val ASCII_CHARS = "\u00A0.:-+=*#%@"
+        private const val EXTENDED_ASCII_CHARS = "\u00A0\u00A0\u00A0...:::---===+++***###%%@@@"
+        private const val ULTRA_ASCII_CHARS = "\u00A0\u00A0_.,-=:;cba!?0123456789\$W#@"
     }
 
     /*
