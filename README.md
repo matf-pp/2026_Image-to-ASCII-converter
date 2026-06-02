@@ -1,5 +1,3 @@
-# Image to ASCII Converter
-
 ## O aplikaciji
 
 **Image to ASCII Converter** je Android aplikacija koja omogućava pretvaranje slika u ASCII art. Korisnik može da napravi sliku pomoću kamere ili da izabere postojeću sliku iz galerije, nakon čega aplikacija generiše ASCII prikaz slike.
@@ -66,11 +64,11 @@ Aplikacija je namenjena za pokretanje na Android mobilnim uređajima.
 
 <table width="300%">
   <tr>
-    <td align="center" width="50%">
+    <td align="center">
       <strong>Aleksa Stefanović</strong><br>
       <a href="mailto:aleksa.freelance.it@gmail.com">aleksa.freelance.it@gmail.com</a>
     </td>
-    <td align="center" width="50%">
+    <td align="center">
       <strong>Nikola Ivanović</strong><br>
       <a href="mailto:nikolox1808@gmail.com">nikolox1808@gmail.com</a>
     </td>
@@ -80,4 +78,25 @@ Aplikacija je namenjena za pokretanje na Android mobilnim uređajima.
 ## Napomena
 
 Aplikacija koristi kameru i galeriju uređaja, pa je potrebno dozvoliti odgovarajuće permisije prilikom korišćenja aplikacije.
+
+## Slike aplikacije
+
+<table width="300%">
+  <tr>
+    <td align="center" width="50%">
+      <img width="216" height="410" alt="REALRATS" src="https://github.com/user-attachments/assets/2e4d4505-06e4-4553-96fb-10892e163b24" />
+    </td>
+    <td align="center" width="50%">
+      <img width="216" height="410" alt="ASCIIRATS" src="https://github.com/user-attachments/assets/aec763f5-af19-4cd9-9829-71e9dda9e603" />
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img width="216" height="410" alt="RealWH40K" src="https://github.com/user-attachments/assets/f6a3195f-b26a-4587-944c-15c7ad573128" />
+    </td>
+    <td>
+      <img width="216" height="410" alt="ASCIIWH40K pnh" src="https://github.com/user-attachments/assets/e92dd4fb-1cf5-48ad-aa1f-7ad05dff0114" />
+    </td>
+  </tr>
+</table>
 
