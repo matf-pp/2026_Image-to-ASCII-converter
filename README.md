@@ -1,5 +1,7 @@
 ## O aplikaciji
 
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/81fd02762c034b48b728b980e2b686b9)](https://app.codacy.com/gh/matf-pp/2026_Image-to-ASCII-converter/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+
 **Image to ASCII Converter** je Android aplikacija koja omogućava pretvaranje slika u ASCII art. Korisnik može da napravi sliku pomoću kamere ili da izabere postojeću sliku iz galerije, nakon čega aplikacija generiše ASCII prikaz slike.
 
 ASCII prikaz može biti generisan u običnoj verziji bez boje ili u verziji sa bojama.
