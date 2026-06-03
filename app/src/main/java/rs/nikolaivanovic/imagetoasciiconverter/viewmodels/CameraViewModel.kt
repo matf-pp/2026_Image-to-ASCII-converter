@@ -88,33 +88,27 @@ class CameraViewModel : ViewModel() {
     ): ConversionResult = withContext(Dispatchers.Default) {
         val converter = AsciiConverter()
 
-        return@withContext if (isColorEnabled) {
-            val coloredChars = converter.convertToColoredAsciiFromPath(
-                imagePath,
-                width,
-                quality
-            )
+        val result = converter.convertFromPath(
+            imagePath = imagePath,
+            width = width,
+            quality = quality,
+            isColorEnabled = isColorEnabled
+        )
 
-            val plainText = buildString {
-                coloredChars.forEach { append(it.char) }
+        return@withContext when (result) {
+            is AsciiConverter.Result.Colored -> {
+                ConversionResult.ColoredText(
+                    coloredChars = result.coloredChars,
+                    width = width,
+                    plainText = result.text
+                )
             }
-
-            ConversionResult.ColoredText(
-                coloredChars = coloredChars,
-                width = width,
-                plainText = plainText
-            )
-        } else {
-            val plainText = converter.convertToAsciiFromPath(
-                imagePath,
-                width,
-                quality
-            )
-
-            ConversionResult.PlainText(
-                text = plainText,
-                width = width
-            )
+            is AsciiConverter.Result.Plain -> {
+                ConversionResult.PlainText(
+                    text = result.text,
+                    width = width
+                )
+            }
         }
     }
 
